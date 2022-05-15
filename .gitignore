@@ -1,5 +1,7 @@
 .vs/
 .vscode/
 
+Debug/
+x64/
 output/
 dataC/output/
