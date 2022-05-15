@@ -1,2 +1,5 @@
-output/*.*
-dataC/output/*.*
+.vs/
+.vscode/
+
+output/
+dataC/output/
