@@ -15,7 +15,7 @@ void storeXYZregions(unsigned int* imageOut, const char* filename,
 	int cols, int rows, int depth, int nbNonZero);
 
 char* readSource(char* kernelPath);
-void chk(cl_int status, const char* cmd);
+// void chk(cl_int status, const char* cmd);
 
 int search(unsigned int* array, int length, int valueToFind);
 
@@ -32,5 +32,8 @@ void rotation(float t, float p, float shift, int i, float* inputDiscs);
 void storeXYZBorderRegions(unsigned int* imageOut, const char* filename,
 	int cols, int rows, int depth,
 	int nbRegions, unsigned int* regionsId, unsigned int* closedBlocks, unsigned int* regionsColor);
+
+void cuCheck(cudaError_t err, const char* exprStr, const char* file, int line);
+#define CU_CHECK(expr) cuCheck(expr, #expr, __FILE__, __LINE__)
 
 #endif

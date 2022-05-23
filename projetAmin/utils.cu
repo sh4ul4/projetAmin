@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <CL/cl.h>
+// #include <CL/cl.h>
 #include <math.h>
 
-#include "utils.hpp"
+#include "utils.cuh"
 
 void storeXYZnonZerovaluesWithTunnel(unsigned int *imageOut, const char *filename, 
             int cols, int rows, int depth,
@@ -151,7 +151,7 @@ void storeXYZregions(unsigned int *imageOut, const char *filename,
 // This function reads in a text file and stores it as a char pointer
 char* readSource(char* kernelPath) {
 
-   cl_int status;
+   int status;
    FILE *fp;
    char *source;
    long int size;
@@ -194,6 +194,7 @@ char* readSource(char* kernelPath) {
    return source;
 }
 
+/*
 void chk(cl_int status, const char* cmd) {
 
    if(status != CL_SUCCESS) {
@@ -202,6 +203,7 @@ void chk(cl_int status, const char* cmd) {
    }
    else printf("%s succeeded\n", cmd);
 }
+*/
 
 int search(unsigned int* array, int length, int valueToFind)
 {
@@ -291,4 +293,9 @@ void storeXYZBorderRegions(unsigned int* imageOut, const char* filename,
 				}
 			}
 	fclose(xyzfile);
+}
+
+void cuCheck(cudaError_t err, const char* exprStr, const char* file, int line) {
+  if (err != cudaSuccess)
+    fprintf(stderr, "CUDA check failed: %s\nAt \"%s\"\n%s:%d\n", cudaGetErrorString(err), exprStr, file, line);
 }
