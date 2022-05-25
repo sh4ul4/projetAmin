@@ -15,19 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Source.cpp">
-      <Filter>Fichiers sources</Filter>
-    </ClCompile>
-    <ClCompile Include="utils.cpp">
-      <Filter>Fichiers sources</Filter>
-    </ClCompile>
-    <ClCompile Include="voxelsRegions3D.cpp">
-      <Filter>Fichiers sources</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="utils.hpp">
-      <Filter>Fichiers sources</Filter>
-    </ClInclude>
+    <None Include="utils.cu" />
+    <None Include="voxelsRegions3D.cu" />
   </ItemGroup>
 </Project>

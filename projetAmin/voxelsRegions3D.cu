@@ -217,7 +217,8 @@ int main(int argc, char* argv[])
     dim3 globalSize = dim3(ImgSizeX, ImgSizeY, ImgSizeZ);
     dim3 threadsPerBlock = dim3(WPSIZE, WPSIZE, WPSIZE);
     callCreateDiskPixel_localM_fusion2(globalSize, threadsPerBlock, d_connectImage, d_inputDisks, ImgSizeX, ImgSizeY, nbDisks, MAXDISCSPERBLOCK);
-
+    
+    CU_CHECK(cudaThreadSynchronize());
     CU_CHECK(cudaMemcpy(connectImage, d_connectImage, dataSizeImage, cudaMemcpyDeviceToHost));
     CU_CHECK(cudaFree(d_inputDisks));
 
@@ -306,7 +307,8 @@ int main(int argc, char* argv[])
         dim3 numBlocks = dim3(WPSIZE, WPSIZE, WPSIZE);
         callDoublePassSquare_CB(numBlocks, modifWidth, modifHeight, modifDepth, d_workImage, d_modif, d_connectImage,
             ImgSizeX, ImgSizeY, ImgSizeZ, blockSizeX, blockSizeY, blockSizeZ);
-
+        
+        CU_CHECK(cudaThreadSynchronize());
         CU_CHECK(cudaMemcpy(workModif, d_modif, dataSizeModif, cudaMemcpyDeviceToHost));
 
         for (int cpt = 0; cpt < modifWidth * modifHeight * modifDepth; cpt++)
