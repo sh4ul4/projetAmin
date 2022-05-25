@@ -195,18 +195,104 @@ int main(int argc, char* argv[])
     }
     fclose(f);
 
+    /*
+    // Set up the OpenCL environment
+    cl_int status;
 
+    // Discovery platform
+    cl_platform_id platforms[100];
+    cl_platform_id platform;
+    status = clGetPlatformIDs(100, platforms, NULL);
+    chk(status, "clGetPlatformIDs");
+    platform = platforms[PLATFORM_TO_USE];
+
+    // Discover device
+    cl_device_id devices[100];
+    clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 100, devices, NULL);
+    chk(status, "clGetDeviceIDs");
+
+    cl_device_id device = devices[DEVICE_TO_USE];
+
+    // Create context
+    cl_context_properties props[3] = { CL_CONTEXT_PLATFORM,
+        (cl_context_properties)(platform), 0 };
+    cl_context context;
+    context = clCreateContext(props, 1, &device, NULL, NULL, &status);
+    chk(status, "clCreateContext");
+
+    // Create command queue
+    cl_command_queue queue;
+    queue = clCreateCommandQueue(context, device, 0, &status);
+    chk(status, "clCreateCommandQueue");
+    */
+
+    // Create the input and output buffers on the device
+    /*
+    cl_mem d_inputDisks;
+    d_inputDisks = clCreateBuffer(context, CL_MEM_READ_ONLY, dataSizeDisks, NULL,
+        &status);
+    chk(status, "clCreateBuffer d_inputDisks");
+    */
     float* d_inputDisks = nullptr;
     CU_CHECK(cudaMalloc((void**)&d_inputDisks, dataSizeDisks));
 
     size_t dataSizeImage = ImgSizeX * ImgSizeY * ImgSizeZ * sizeof(unsigned int);
     unsigned int* connectImage = (unsigned int*)malloc(dataSizeImage);
+    /*cl_mem d_connectImage;
+    d_connectImage = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSizeImage, NULL,
+        &status);
+    */
     unsigned int* d_connectImage = nullptr;
     CU_CHECK(cudaMalloc((void**)&d_connectImage, dataSizeImage));
 
+    /*
     // Copy the input disks to the device
+    status = clEnqueueWriteBuffer(queue, d_inputDisks, CL_TRUE, 0, dataSizeDisks,
+        inputDisks, 0, NULL, NULL);
+    chk(status, "clEnqueueWriteBuffer inputDisks");
+    */
     CU_CHECK(cudaMemcpy(d_inputDisks, inputDisks, dataSizeDisks, cudaMemcpyHostToDevice));
 
+    /*
+    // Create a program object with source and build it
+    const char* source;
+    source = readSource((char*)KERNELCONNECT);
+
+    cl_program program;
+    program = clCreateProgramWithSource(context, 1, &source, NULL, NULL);
+    chk(status, "clCreateProgramWithSource");
+    status = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    if (status != 0) {
+        printf("%s failed (%d)\n", "clBuildProgram", status);
+        size_t len;
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+        char* buffer = (char*)malloc(len);
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
+        printf("%s", buffer);
+        exit(1);
+    }
+    else printf("clBuildProgram succeeded\n");
+    */
+
+    // Create the kernel object
+    /*
+    cl_kernel kernel;
+    kernel = clCreateKernel(program, "create_disk_pixel_localM_fusion2", &status);
+    chk(status, "clCreateKernel");
+
+    // Set the kernel arguments
+    int maxNbDiscsPerBlock = MAXDISCSPERBLOCK;
+    int sizeForLocalMemory = sizeof(unsigned int) * maxNbDiscsPerBlock;
+    status = clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_connectImage);
+    status |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_inputDisks);
+    status |= clSetKernelArg(kernel, 2, sizeof(int), &ImgSizeX);
+    status |= clSetKernelArg(kernel, 3, sizeof(int), &ImgSizeY);
+    status |= clSetKernelArg(kernel, 4, sizeof(int), &nbDisks);
+    status |= clSetKernelArg(kernel, 5, sizeForLocalMemory, NULL);
+    status |= clSetKernelArg(kernel, 6, sizeof(int), &maxNbDiscsPerBlock);
+
+    chk(status, "clSetKernelArg");
+    */
     time(&timer);
     tm_info = localtime(&timer);
     strftime(buffer, 26, "%Y-%m-%d %H:%M:%S", tm_info);
@@ -214,12 +300,34 @@ int main(int argc, char* argv[])
 
 
     // Run the first kernel
+    /*
+    //size_t globalSize = nbDisks;
+    size_t globalSize[3] = { ImgSizeX, ImgSizeY, ImgSizeZ };
+    size_t localSize[3] = { WPSIZE, WPSIZE, WPSIZE };
+    status = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, globalSize,
+        localSize, 0, NULL, NULL);
+    chk(status, "clEnqueueNDRange");
+    status = clFlush(queue);
+    chk(status, "clFlush");
+    status = clFinish(queue);
+    chk(status, "clFinish");
+    printf("Kernel create_disk: done\n");
+    */
     dim3 globalSize = dim3(ImgSizeX, ImgSizeY, ImgSizeZ);
     dim3 threadsPerBlock = dim3(WPSIZE, WPSIZE, WPSIZE);
     callCreateDiskPixel_localM_fusion2(globalSize, threadsPerBlock, d_connectImage, d_inputDisks, ImgSizeX, ImgSizeY, nbDisks, MAXDISCSPERBLOCK);
-
-    CU_CHECK(cudaMemcpy(connectImage, d_connectImage, dataSizeImage, cudaMemcpyDeviceToHost));
     CU_CHECK(cudaFree(d_inputDisks));
+
+    /*
+    status = clEnqueueReadBuffer(queue, d_connectImage, CL_TRUE, 0, dataSizeImage,
+        connectImage, 0, NULL, NULL);
+    chk(status, "clEnqueueReadBuffer");
+    status = clFlush(queue);
+    chk(status, "clFlush");
+    status = clFinish(queue);
+    chk(status, "clFinish");
+    */
+    CU_CHECK(cudaMemcpy(connectImage, d_connectImage, dataSizeImage, cudaMemcpyDeviceToHost));
 
     if (STORECONNECTIVIY) {
         if (WITHTUNNEL)
@@ -244,7 +352,7 @@ int main(int argc, char* argv[])
 
     ///////////////////////////////////////////////////: START THE FLOOD
 
-    // Work image buffer
+       // Work image buffer
     unsigned int* workImage = (unsigned int*)malloc(dataSizeImage);
     if (WITHTUNNEL) {
         for (int k = 0; k < ImgSizeZ; ++k) {
@@ -278,11 +386,38 @@ int main(int argc, char* argv[])
         }
     }
 
+    /*cl_mem d_workImage;
+    d_workImage = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSizeImage, NULL,
+        &status);
+    chk(status, "clCreateBuffer d_workImage");*/
     unsigned int* d_workImage = nullptr;
     CU_CHECK(cudaMalloc((void**)&d_workImage, dataSizeImage));
 
     // Copy the initial image values to the device
+    /*status = clEnqueueWriteBuffer(queue, d_workImage, CL_TRUE, 0, dataSizeImage,
+        workImage, 0, NULL, NULL);
+    chk(status, "clEnqueueWriteBuffer workImage");*/
     CU_CHECK(cudaMemcpy(d_workImage, workImage, dataSizeImage, cudaMemcpyHostToDevice));
+
+    // Double pass kernel
+    /*source = readSource((char*)KERNELBLOCKS);
+    program = clCreateProgramWithSource(context, 1, &source, NULL, NULL);
+    chk(status, "clCreateProgramWithSource");
+    status = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    if (status != 0) {
+        printf("%s failed (%d)\n", "clBuildProgram", status);
+        size_t len;
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+        char* buffer = (char*)malloc(len);
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, len, buffer, NULL);
+        printf("%s", buffer);
+        exit(1);
+    }
+    else printf("clBuildProgram succeeded\n");
+
+    cl_kernel kernel_dp;
+    kernel_dp = clCreateKernel(program, "double_pass_square_CB", &status);
+    chk(status, "clCreateKernel");*/
 
     int blockSizeX = BLOCKSIZEX;
     int blockSizeY = BLOCKSIZEY;
@@ -291,10 +426,29 @@ int main(int argc, char* argv[])
     size_t modifHeight = ImgSizeY / blockSizeY;
     size_t modifDepth = ImgSizeZ / blockSizeZ;
     size_t dataSizeModif = modifWidth * modifHeight * modifDepth * sizeof(unsigned int);
-    unsigned int* workModif = (unsigned int*)malloc(dataSizeModif);
+    unsigned int* workModif = NULL;
+    workModif = (unsigned int*)malloc(dataSizeModif);
+    /*cl_mem d_modif;
+    d_modif = clCreateBuffer(context, CL_MEM_WRITE_ONLY, dataSizeModif, NULL,
+        &status);
+    chk(status, "clCreateBuffer");*/
     unsigned int* d_modif = nullptr;
     CU_CHECK(cudaMalloc((void**)&d_modif, dataSizeModif));
+    /*status = clEnqueueWriteBuffer(queue, d_modif, CL_TRUE, 0, dataSizeModif,
+        workModif, 0, NULL, NULL);
+    chk(status, "clEnqueueWriteBuffer");*/
     CU_CHECK(cudaMemcpy(d_modif, workModif, dataSizeModif, cudaMemcpyHostToDevice));
+
+    /*status = clSetKernelArg(kernel_dp, 0, sizeof(cl_mem), &d_workImage);
+    status |= clSetKernelArg(kernel_dp, 1, sizeof(cl_mem), &d_modif);
+    status |= clSetKernelArg(kernel_dp, 2, sizeof(cl_mem), &d_connectImage);
+    status |= clSetKernelArg(kernel_dp, 3, sizeof(int), &ImgSizeX);
+    status |= clSetKernelArg(kernel_dp, 4, sizeof(int), &ImgSizeY);
+    status |= clSetKernelArg(kernel_dp, 5, sizeof(int), &ImgSizeZ);
+    status |= clSetKernelArg(kernel_dp, 6, sizeof(int), &blockSizeX);
+    status |= clSetKernelArg(kernel_dp, 7, sizeof(int), &blockSizeY);
+    status |= clSetKernelArg(kernel_dp, 8, sizeof(int), &blockSizeZ);
+    chk(status, "clSetKernelArg");*/
 
     // Finally !
     int nbTotalModif = 1;
@@ -302,11 +456,23 @@ int main(int argc, char* argv[])
 
     printf("Running %ld threads...\n", (long)(modifWidth * modifHeight * modifDepth));
     while (nbTotalModif > 0) {
+
         nbTotalModif = 0;
+        /*size_t globalSize_dp[3] = {modifWidth, modifHeight, modifDepth};
+        status = clEnqueueNDRangeKernel(queue, kernel_dp, 3, NULL, globalSize_dp, NULL, 0,
+            NULL, NULL);
+        chk(status, "clEnqueueNDRange");
+        status = clFlush(queue);
+        chk(status, "clFlush");
+        status = clFinish(queue);
+        chk(status, "clFinish");*/
         dim3 numBlocks = dim3(WPSIZE, WPSIZE, WPSIZE);
         callDoublePassSquare_CB(numBlocks, modifWidth, modifHeight, modifDepth, d_workImage, d_modif, d_connectImage,
             ImgSizeX, ImgSizeY, ImgSizeZ, blockSizeX, blockSizeY, blockSizeZ);
 
+        /*status = clEnqueueReadBuffer(queue, d_modif, CL_TRUE, 0, dataSizeModif,
+            workModif, 0, NULL, NULL);
+        chk(status, "clEnqueueReadBuffer");*/
         CU_CHECK(cudaMemcpy(workModif, d_modif, dataSizeModif, cudaMemcpyDeviceToHost));
 
         for (int cpt = 0; cpt < modifWidth * modifHeight * modifDepth; cpt++)
@@ -323,16 +489,23 @@ int main(int argc, char* argv[])
 
 
     // Read the image back to the host
+    /*status = clEnqueueReadBuffer(queue, d_workImage, CL_TRUE, 0, dataSizeImage,
+        workImage, 0, NULL, NULL);
+    chk(status, "clEnqueueReadBuffer");*/
     CU_CHECK(cudaMemcpy(workImage, d_workImage, dataSizeImage, cudaMemcpyDeviceToHost));
 
-    // Free GPU buffers
+    /*status = clFlush(queue);
+    chk(status, "clFlush");
+    status = clFinish(queue);
+    chk(status, "clFinish");*/
+
+    // Free the memory on the host for unnecessary objects
+    /*free(workModif);
+    free(connectImage);*/
     CU_CHECK(cudaFree(d_workImage));
     CU_CHECK(cudaFree(d_modif));
     CU_CHECK(cudaFree(d_connectImage));
 
-    // Free the memory on the host for unnecessary objects
-    free(workModif);
-    free(connectImage);
 
     /*********************************************************************************************************/
        // Count the number of regions EXCLUDING 0 (tunnel) and 1 (outer region)

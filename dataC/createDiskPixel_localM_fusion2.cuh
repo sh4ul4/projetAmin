@@ -242,13 +242,13 @@ inline void create_disk_pixel_localM_fusion2(
     float nz = src_disks[ix*7 + 5];
     float radius = src_disks[ix*7 + 6];
     fillConnectivity(x, y, z, dx, dy, dz, nx, ny, nz, radius, 
-                    connectivity, W, H);
+                     connectivity, W, H);
   }
 }
 
 inline void callCreateDiskPixel_localM_fusion2(
   dim3 globalNumItems,
-  dim3 numBlocks,
+  dim3 threadsPerBlock,
   unsigned int* connectivity,
   float* src_disks,
   int W,
@@ -256,10 +256,10 @@ inline void callCreateDiskPixel_localM_fusion2(
   int nbDisks,
   int maxDisksPerBlock) {
   int sizeForLocalMemory = sizeof(unsigned int) * maxDisksPerBlock;
-  dim3 threadsPerBlock = dim3(
-    globalNumItems.x / numBlocks.x,
-    globalNumItems.y / numBlocks.y,
-    globalNumItems.z / numBlocks.z);
+  dim3 numBlocks = dim3(
+    globalNumItems.x / threadsPerBlock.x,
+    globalNumItems.y / threadsPerBlock.y,
+    globalNumItems.z / threadsPerBlock.z);
   create_disk_pixel_localM_fusion2<<<numBlocks, threadsPerBlock, sizeForLocalMemory>>>(connectivity, src_disks, W, H, nbDisks, maxDisksPerBlock);
 }
 
